@@ -13,6 +13,7 @@ module.exports = {
   },
 
   plugins: [
+
     'gatsby-plugin-sass',
     {
       resolve:'gatsby-source-filesystem',
@@ -26,6 +27,7 @@ module.exports = {
       resolve: 'gatsby-transformer-remark',
       options: {
         plugins: [
+            'gatsby-remark-mathjax',
             'gatsby-remark-relative-images',
             {
               resolve: 'gatsby-remark-images',
