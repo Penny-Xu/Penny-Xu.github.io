@@ -7,7 +7,10 @@ const BlogPage = () => {
 
 	const data = useStaticQuery(graphql`
 		query{
-			allMarkdownRemark{
+			allMarkdownRemark(
+        sort: { order: DESC, fields: [frontmatter___date] }
+        limit: 1000
+      ){
 				edges{
 					node{
 			 			frontmatter{
@@ -25,7 +28,7 @@ const BlogPage = () => {
  `)
 
 	return(
-
+		//code
 		<div>
 			<Layout>
 				<h1> Blog </h1>
@@ -34,15 +37,17 @@ const BlogPage = () => {
 							return(
 								<li className={blogStyles.post}>
 									<Link to={`/blog/${edge.node.fields.slug}`} >
-									<h2> {edge.node.frontmatter.title}</h2>
-									<p> {edge.node.frontmatter.date} </p>
+									<h2> {edge.node.frontmatter.title} <level>{edge.node.frontmatter.category}</level> </h2>
+									<p>{edge.node.frontmatter.date}</p>
 									</Link>
 								</li>
 							)
 						})}
 				</ol>
+			<Link className= {blogStyles.tag} to="/tags">All Tags</Link>
 			</Layout>
 		</div>
+
 	)
 }
 

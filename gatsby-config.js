@@ -14,6 +14,22 @@ module.exports = {
 
   plugins: [
 
+    {
+      resolve: `gatsby-plugin-google-analytics`,
+      options: {
+        // replace "UA-XXXXXXXXX-X" with your own Tracking ID
+        trackingId: "UA-141814063-1",
+        head: true,
+      },
+    },
+
+    {
+      resolve: `gatsby-plugin-disqus`,
+      options: {
+        shortname: `pennyxu`
+      }
+    },
+
     'gatsby-plugin-sass',
     {
       resolve:'gatsby-source-filesystem',
@@ -27,7 +43,7 @@ module.exports = {
       resolve: 'gatsby-transformer-remark',
       options: {
         plugins: [
-            'gatsby-remark-mathjax',
+          'gatsby-remark-copy-linked-files',
             'gatsby-remark-relative-images',
             {
               resolve: 'gatsby-remark-images',
@@ -35,9 +51,46 @@ module.exports = {
                 maxWidth: 750,
                 linkImagesToOriginal: false
               }
+            },
+            {
+              resolve: `gatsby-remark-katex`,
+              options: {
+                strict: `ignore`
+              }
             }
           ]
       }
+    },
+    {
+    resolve: `gatsby-plugin-favicon`,
+    options: {
+      logo: "./src/favicon.png",
+
+      // WebApp Manifest Configuration
+      appName: null, // Inferred with your package.json
+      appDescription: null,
+      developerName: null,
+      developerURL: null,
+      dir: 'auto',
+      lang: 'en-US',
+      background: '#fff',
+      theme_color: '#fff',
+      display: 'standalone',
+      orientation: 'any',
+      start_url: '/?homescreen=1',
+      version: '1.0',
+
+      icons: {
+        android: true,
+        appleIcon: true,
+        appleStartup: true,
+        coast: false,
+        favicons: true,
+        firefox: true,
+        yandex: false,
+        windows: false
+      }
     }
+  }
   ]
 }
