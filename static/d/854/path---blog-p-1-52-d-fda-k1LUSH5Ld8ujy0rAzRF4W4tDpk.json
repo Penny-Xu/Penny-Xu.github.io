@@ -1,0 +1,1 @@
+{"errors":[{"message":"KaTeX parse error: Expected 'EOF', got '&' at position 9: (a+b)^2 &̲= (a+b)(a+b)   …","locations":[{"line":9,"column":5}],"path":["markdownRemark","html"]}],"data":{"markdownRemark":{"frontmatter":{"title":"Do you even know cross entropy?","date":"06-04-2019"},"html":null}},"pageContext":{"isCreatedByStatefulCreatePages":false,"slug":"p1"}}

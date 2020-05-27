@@ -1,0 +1,1 @@
+{"errors":[{"message":"KaTeX parse error: Undefined control sequence: \\* at position 18: …{f_i f_o} = {H^\\̲*̲}_{D} P_{f_i}","locations":[{"line":9,"column":5}],"path":["markdownRemark","html"]}],"data":{"markdownRemark":{"frontmatter":{"title":"Image Restoration","date":"06-10-2019"},"html":null}},"pageContext":{"isCreatedByStatefulCreatePages":false,"slug":"p2"}}

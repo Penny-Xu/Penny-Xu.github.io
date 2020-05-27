@@ -1,0 +1,1 @@
+{"data":{"allMarkdownRemark":{"totalCount":2,"edges":[{"node":{"fields":{"slug":"temp"},"frontmatter":{"title":"New","date":"2020-01-05"}}},{"node":{"fields":{"slug":"probabilistic-classifier"},"frontmatter":{"title":"Probabilistic Classifier","date":"06-12-2019"}}}]}},"pageContext":{"isCreatedByStatefulCreatePages":false,"tag":"classification"}}

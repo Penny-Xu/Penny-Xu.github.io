@@ -1,0 +1,1 @@
+{"errors":[{"message":"KaTeX parse error: Expected & or \\\\ or \\cr or \\end at end of input: \\begin{aligned}","locations":[{"line":9,"column":5}],"path":["markdownRemark","html"]}],"data":{"markdownRemark":{"frontmatter":{"title":"Do you even know cross entropy?","date":"06-04-2019"},"html":null}},"pageContext":{"isCreatedByStatefulCreatePages":false,"slug":"p1"}}

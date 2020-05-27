@@ -1,0 +1,1 @@
+{"data":{"allMarkdownRemark":{"totalCount":2,"edges":[{"node":{"fields":{"slug":"when-gpu"},"frontmatter":{"title":"When to use GPU for training?","date":"2019-09-04"}}},{"node":{"fields":{"slug":"tiled-matrix-multiplication"},"frontmatter":{"title":"Tiled Matrix Multiplication","date":"2019-08-24"}}}]}},"pageContext":{"isCreatedByStatefulCreatePages":false,"tag":"CUDA"}}
