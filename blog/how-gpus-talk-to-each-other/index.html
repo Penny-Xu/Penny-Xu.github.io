@@ -1,0 +1,217 @@
+<!DOCTYPE html><html lang="en" data-astro-cid-ju4pidww><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32"><link rel="apple-touch-icon" href="/favicon.png"><meta name="description" content="A friendly walkthrough of collective communication: what all-reduce is, how ring and tree implementations differ, and why a transformer split across GPUs can't avoid it."><link rel="canonical" href="https://penny-xu.github.io/blog/how-gpus-talk-to-each-other/"><meta property="og:type" content="article"><meta property="og:title" content="How GPUs Talk to Each Other | Penny Xu"><meta property="og:description" content="A friendly walkthrough of collective communication: what all-reduce is, how ring and tree implementations differ, and why a transformer split across GPUs can't avoid it."><meta property="og:url" content="https://penny-xu.github.io/blog/how-gpus-talk-to-each-other/"><meta property="og:image" content="https://penny-xu.github.io/me.jpg"><meta property="og:site_name" content="Penny Xu"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="How GPUs Talk to Each Other | Penny Xu"><meta name="twitter:description" content="A friendly walkthrough of collective communication: what all-reduce is, how ring and tree implementations differ, and why a transformer split across GPUs can't avoid it."><meta name="twitter:image" content="https://penny-xu.github.io/me.jpg"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"><title>How GPUs Talk to Each Other | Penny Xu</title><style>.header[data-astro-cid-nen7h5rs]{padding:1rem 0 3rem}.title[data-astro-cid-nen7h5rs]{color:var(--color-text);font-size:2.75rem;text-decoration:none;transition:color .15s;display:inline-block}.title[data-astro-cid-nen7h5rs]:hover{color:var(--color-accent-strong);opacity:1}.nav-list[data-astro-cid-nen7h5rs]{margin:0;padding:0;list-style-type:none;display:flex}.nav-item[data-astro-cid-nen7h5rs]{color:var(--color-text-muted);margin-right:1.5rem;padding-bottom:.3rem;font-size:.9rem;font-weight:500;text-decoration:none;position:relative}.nav-item[data-astro-cid-nen7h5rs]:after{content:"";background:var(--color-accent);height:2px;transition:right .2s;position:absolute;bottom:0;left:0;right:100%}.nav-item[data-astro-cid-nen7h5rs]:hover{color:var(--color-text);opacity:1}.nav-item[data-astro-cid-nen7h5rs]:hover:after{right:0}.nav-item[data-astro-cid-nen7h5rs].active{color:var(--color-text)}.nav-item[data-astro-cid-nen7h5rs].active:after{right:0}.footer[data-astro-cid-jo6i4kqk]{border-top:1px solid var(--color-border);color:var(--color-text-muted);margin-top:3rem;padding-top:1.5rem;font-size:.8rem}.icon-link[data-astro-cid-jo6i4kqk]{color:var(--color-text-muted);margin-right:1.5rem;text-decoration:none;display:inline-flex}.icon-link[data-astro-cid-jo6i4kqk]:hover{color:var(--color-accent);opacity:1;transform:translateY(-2px)}:root{--color-bg:#fff;--color-text:#000000d1;--color-text-muted:#767078;--color-accent:pink;--color-accent-soft:#ffebee;--color-accent-strong:#d6336c;--color-surface:#f7f5f6;--color-border:#0000001a;--color-code-bg:#0000000b;color-scheme:light dark}@media (prefers-color-scheme:dark){:root{--color-bg:#17151a;--color-text:#ffffffe0;--color-text-muted:#9d95a0;--color-accent:#f472b6;--color-accent-soft:#e467a629;--color-accent-strong:#f9a8d4;--color-surface:#221f26;--color-border:#ffffff1a;--color-code-bg:#ffffff0f}}html{box-sizing:border-box;-webkit-text-size-adjust:100%;font-size:112.5%;overflow-y:scroll}*,:before,:after{box-sizing:inherit}body{background:var(--color-bg);color:var(--color-text);word-wrap:break-word;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;font-weight:400;line-height:1.6;transition:background-color .2s,color .2s}img{border-style:none;border-radius:6px;max-width:100%;margin:0 0 1.45rem}h1,h2,h3,h4,h5,h6{color:var(--color-text);text-rendering:optimizelegibility;letter-spacing:-.01em;margin:0 0 1.1rem;font-family:Fraunces,Georgia,serif;font-weight:600;line-height:1.15}h1{font-size:2.4rem}h2{font-size:1.65rem}h3{font-size:1.35rem}ul,ol{margin:0 0 1.45rem 1.45rem;list-style-position:outside}p,figure,pre,table,fieldset,blockquote,form{margin:0 0 1.45rem}pre{border:1px solid var(--color-border);border-radius:8px;padding:1.25rem;font-size:.85rem;line-height:1.42;overflow:auto;background:var(--color-code-bg)!important}table{border-collapse:collapse;width:100%}td,th{text-align:left;border-bottom:1px solid var(--color-border);padding:.725rem .96667rem}code,kbd,pre,samp{font-family:SFMono-Regular,Consolas,Roboto Mono,Droid Sans Mono,Liberation Mono,Menlo,Courier,monospace}tt,code{background-color:var(--color-code-bg);border-radius:4px;padding:.2em .35em}pre code{background:0 0;padding:0}hr{background:var(--color-border);border:none;height:1px;margin:0 0 1.4rem}a{color:var(--color-text);text-decoration-color:var(--color-accent);text-underline-offset:.15em;text-decoration-thickness:2px;transition:color .15s,background-color .15s,opacity .15s,border-color .15s,transform .15s}a:hover{color:var(--color-accent-strong);opacity:1}::selection{background:var(--color-accent-soft)}.container[data-astro-cid-ju4pidww]{flex-direction:column;max-width:750px;min-height:100vh;margin:0 auto;padding:1rem;display:flex}.content[data-astro-cid-ju4pidww]{flex-grow:1}
+</style><link rel="stylesheet" href="/_astro/_slug_.DX-jdrpN.css"></head><body data-astro-cid-ju4pidww><div class="container" data-astro-cid-ju4pidww><div class="content" data-astro-cid-ju4pidww><header class="header" data-astro-cid-nen7h5rs><h1 data-astro-cid-nen7h5rs><a class="title" href="/" data-astro-cid-nen7h5rs>Penny Xu</a></h1><nav data-astro-cid-nen7h5rs><ul class="nav-list" data-astro-cid-nen7h5rs><li data-astro-cid-nen7h5rs><a class="nav-item" href="/" data-astro-cid-nen7h5rs>Home</a></li><li data-astro-cid-nen7h5rs><a class="nav-item active" href="/blog" data-astro-cid-nen7h5rs>Blog</a></li><li data-astro-cid-nen7h5rs><a class="nav-item" href="/about" data-astro-cid-nen7h5rs>About Me</a></li></ul></nav></header><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"How GPUs Talk to Each Other","description":"A friendly walkthrough of collective communication: what all-reduce is, how ring and tree implementations differ, and why a transformer split across GPUs can't avoid it.","datePublished":"2026-10-14T00:00:00.000Z","author":{"@type":"Person","name":"Penny Xu","url":"https://penny-xu.github.io"},"keywords":"LLM, inference, tensor parallelism, NCCL, GPU, distributed systems","mainEntityOfPage":"https://penny-xu.github.io/blog/how-gpus-talk-to-each-other/"}</script><h1 data-astro-cid-zg7dkzxc>How GPUs Talk to Each Other</h1><p class="date" data-astro-cid-zg7dkzxc>2026-10-14</p><nav data-astro-cid-zg7dkzxc><ul class="tag-list" data-astro-cid-zg7dkzxc><li data-astro-cid-zg7dkzxc><a class="tag" href="/tags/llm/" data-astro-cid-zg7dkzxc>LLM</a></li><li data-astro-cid-zg7dkzxc><a class="tag" href="/tags/inference/" data-astro-cid-zg7dkzxc>inference</a></li><li data-astro-cid-zg7dkzxc><a class="tag" href="/tags/tensor-parallelism/" data-astro-cid-zg7dkzxc>tensor parallelism</a></li><li data-astro-cid-zg7dkzxc><a class="tag" href="/tags/nccl/" data-astro-cid-zg7dkzxc>NCCL</a></li><li data-astro-cid-zg7dkzxc><a class="tag" href="/tags/gpu/" data-astro-cid-zg7dkzxc>GPU</a></li><li data-astro-cid-zg7dkzxc><a class="tag" href="/tags/distributed-systems/" data-astro-cid-zg7dkzxc>distributed systems</a></li></ul></nav><hr data-astro-cid-zg7dkzxc><p>A 7B model fits on one GPU. A 70B model does not, so you cut it into pieces and spread the pieces across several. The moment you do that, the GPUs have to talk to each other, because each one is now holding an answer that is the right shape and the wrong value.</p>
+<p>That conversation has a name, <strong>all-reduce</strong>. This post is what it is, how it actually gets implemented, and why a transformer can’t avoid it.</p>
+<hr>
+<h2 id="part-1-four-kids-and-a-pile-of-candy">Part 1: four kids and a pile of candy</h2>
+<p>Before any of the GPU vocabulary, here is the whole problem with no GPUs in it.</p>
+<p>Four kids, Anna, Ben, Cara and Dan, spent recess counting candy scattered around a playground. Each searched a different area, and each counted four colors. So each kid is holding four numbers, and all four of them need the grand total per color for their worksheet.</p>
+<p>I’m going to give them deliberately strange counts:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th></th><th>RED</th><th>BLUE</th><th>GREEN</th><th>YELLOW</th></tr></thead><tbody><tr><td><strong>Anna</strong></td><td>1</td><td>2</td><td>3</td><td>4</td></tr><tr><td><strong>Ben</strong></td><td>10</td><td>20</td><td>30</td><td>40</td></tr><tr><td><strong>Cara</strong></td><td>100</td><td>200</td><td>300</td><td>400</td></tr><tr><td><strong>Dan</strong></td><td>1000</td><td>2000</td><td>3000</td><td>4000</td></tr></tbody></table>
+<p>Each kid owns a digit place, so any running total announces its own history. <code>11</code> means Anna and Ben have contributed. <code>111</code> means Anna, Ben and Cara. <code>1111</code> means everyone, and it’s finished.</p>
+<p>One rule: you can say one number to one person at a time, and that takes one second.</p>
+<h3 id="method-1-everyone-tells-anna">Method 1: everyone tells Anna</h3>
+<p>The others read their four numbers to Anna, she adds everything, she reads the totals back.</p>
+<p>Anna listens to 12 numbers, one at a time, then says 12. <strong>Twenty-four seconds of Anna, while three kids stand there watching.</strong> With twenty kids she listens to 76 and says 76. Adding helpers makes it worse, which is a strange property for teamwork.</p>
+<h3 id="method-2-pair-up-then-pair-up-again">Method 2: pair up, then pair up again</h3>
+<p>Ben tells Anna his four numbers while Dan simultaneously tells Cara his. Cara tells Anna. Now Anna has everything, and it travels back down the same way.</p>
+<p><strong>Four rounds.</strong> Far better, and it grows slowly: 64 kids needs only 12 rounds, because pairing up halves the group each time. But notice that every single hand-off is all four numbers. Nobody ever passes less than their whole list.</p>
+<h3 id="method-3-pass-to-your-right">Method 3: pass to your right</h3>
+<p>This is the one that took me a while, because the trick is that <strong>four things move at once</strong>.</p>
+<p>The kids sit in a circle, each passing only to their right. There isn’t one thing being passed around. There are four relay batons, one per color, all travelling simultaneously, each starting from a different seat. A baton carries a running total, and whoever receives it adds their own count for that color.</p>
+<p>Follow just the RED baton: starts with Anna carrying <code>1</code>, reaches Ben who adds his to make <code>11</code>, reaches Cara for <code>111</code>, reaches Dan for <code>1111</code>. Done. One lap, collecting a number from every kid it visited.</p>
+<p>All four are doing that at the same time:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th></th><th>RED baton</th><th>BLUE baton</th><th>GREEN baton</th><th>YELLOW baton</th></tr></thead><tbody><tr><td><strong>start</strong></td><td>Anna <code>1</code></td><td>Ben <code>20</code></td><td>Cara <code>300</code></td><td>Dan <code>4000</code></td></tr><tr><td><strong>pass 1</strong></td><td>Ben <code>11</code></td><td>Cara <code>220</code></td><td>Dan <code>3300</code></td><td>Anna <code>4004</code></td></tr><tr><td><strong>pass 2</strong></td><td>Cara <code>111</code></td><td>Dan <code>2220</code></td><td>Anna <code>3303</code></td><td>Ben <code>4044</code></td></tr><tr><td><strong>pass 3</strong></td><td>Dan <strong><code>1111</code></strong></td><td>Anna <strong><code>2222</code></strong></td><td>Ben <strong><code>3333</code></strong></td><td>Cara <strong><code>4444</code></strong></td></tr></tbody></table>
+<p>Read any row across: each kid appears exactly once. Every pass, every kid hands one number right and receives one from the left. Nobody idle, nobody overloaded, and <strong>nobody ever holds more than one number at a time.</strong></p>
+<p>After three passes all four totals are finished but scattered. Dan is the sole expert on red, Anna on blue, Ben on green, Cara on yellow. Three more passes circulate those finished totals around the same circle, with no adding this time, until everyone has all four.</p>
+<p><strong>Six passes. One number each.</strong> Compare Anna in Method 1, who personally handled twenty-four.</p>
+<p>The total amount of talking is about the same in all three methods. The ring doesn’t do less work. It spreads the work so that nobody is a bottleneck. That is the entire idea, and everything below is bookkeeping about who starts where.</p>
+<hr>
+<h2 id="part-2-the-four-operations">Part 2: the four operations</h2>
+<p>Those are implementations. The thing being implemented is an <strong>operation</strong>: a contract about who ends up holding what. There are four worth knowing, and they’re easy to confuse because three of them involve adding.</p>
+<p>Click through this one. It’s the same four GPUs throughout, each holding a tensor split into four chunks, and the only thing that changes is where everything ends up.</p>
+<iframe src="/blog/tensor-parallelism/collectives.html" style="width:100%;height:700px;border:1px solid #d4d4d4;border-radius:4px" loading="lazy"></iframe>
+<hr>
+<h2 id="part-3-ring-and-tree-divide-different-things">Part 3: ring and tree divide different things</h2>
+<p>Ring is not an alternative to all-reduce. All-reduce is <em>what</em>; ring is <em>how</em>. Same relationship as sorting and quicksort: identical output, very different cost.</p>
+<p>The two that matter in practice are the kids’ Method 2 and Method 3, and the cleanest way I’ve found to hold the difference:</p>
+<blockquote>
+<p><strong>Tree divides the participants. Ring divides the data.</strong></p>
+</blockquote>
+<p>Tree halves the set of GPUs each round, but every message it sends is the full tensor. Ring splits the tensor N ways, but every chunk has to visit every GPU.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th></th><th>Rounds</th><th>Bytes per message</th></tr></thead><tbody><tr><td><strong>Tree</strong></td><td><code>log₂ N</code></td><td><code>D</code></td></tr><tr><td><strong>Ring</strong></td><td><code>N − 1</code></td><td><code>D / N</code></td></tr></tbody></table>
+<p>So they win in opposite regimes, and the deciding question is whether you are paying per byte or per round trip:</p>
+<ul>
+<li><strong>Large messages</strong> → bytes dominate → <strong>ring</strong>. Each GPU moves only <code>2D·(N−1)/N</code>, which approaches <code>2D</code> and never exceeds it. Doubling the GPU count barely changes what any one GPU sends.</li>
+<li><strong>Small messages</strong> → round trips dominate → <strong>tree</strong>. The bytes are trivial; what you’re paying for is synchronization, and ring has <code>2(N−1)</code> of those against tree’s <code>2·log₂ N</code>. At 64 GPUs that’s 126 versus 12.</li>
+</ul>
+<p>The good news is that you never pick. <strong>NCCL</strong>, the library sitting underneath <code>torch.distributed</code> and therefore underneath vLLM, probes your machine at startup to learn which GPUs share an NVLink and which are stuck behind a PCIe switch, then chooses the algorithm separately for every single call based on how big that message happens to be. The same model will use a tree one millisecond and a ring the next, depending on what it’s doing.</p>
+<p>If you’re curious what it picked, <code>NCCL_DEBUG=INFO</code> prints it.</p>
+<hr>
+<h2 id="part-4-why-a-transformer-needs-this">Part 4: why a transformer needs this</h2>
+<p>Tensor parallelism splits the weight matrices themselves, and <a href="https://arxiv.org/abs/1909.08053">Megatron-LM</a> showed how to split them so each block costs only one all-reduce instead of two.</p>
+<p>The MLP is <code>Y = GeLU(X·A)</code>, then <code>Z = Y·B</code>. Split <code>A</code> by <strong>rows</strong> and each GPU ends up holding a partial sum of <code>X·A</code>, which you can’t feed to GeLU, because <code>GeLU(x₁ + x₂) ≠ GeLU(x₁) + GeLU(x₂)</code>. You’d have to communicate before the nonlinearity, and again after the second matmul.</p>
+<p>Split <code>A</code> by <strong>columns</strong> instead and each GPU owns a different set of output columns, every value complete. GeLU is elementwise, so it happens locally for free. Then split <code>B</code> by <strong>rows</strong> to match, which leaves partial sums, and you reduce once at the end. Attention works the same way: split by head, then split the output projection by rows.</p>
+<blockquote>
+<p><strong>Two all-reduces per transformer layer</strong>, one after attention and one after the MLP.</p>
+</blockquote>
+<p>That’s a floor, not an implementation detail. It falls out of the algebra, so no amount of engineering removes it. For a 28-layer model, <strong>56 collectives per forward pass.</strong></p>
+<hr>
+<h2 id="where-the-time-actually-goes">Where the time actually goes</h2>
+<p>Horace He has a piece I’d recommend to anyone, <a href="https://horace.io/brrr_intro.html">Making Deep Learning Go Brrrr From First Principles</a>, which argues that before optimizing anything you should ask which of three things is limiting you: <strong>compute</strong>, <strong>memory bandwidth</strong>, or <strong>overhead</strong>. It’s the right instinct and it saves enormous amounts of wasted effort.</p>
+<p>An all-reduce doesn’t fit any of the three. It isn’t compute, it isn’t memory bandwidth, and it isn’t framework dispatch.</p>
+<p>His taxonomy was written for single-process PyTorch, where the data is already sitting in memory. Put a process or machine boundary in the path and you need a fourth bucket:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Bucket</th><th>Where the time goes</th></tr></thead><tbody><tr><td>Compute</td><td>FLOPs</td></tr><tr><td>Memory bandwidth</td><td>bytes to and from HBM</td></tr><tr><td><strong>Transport</strong></td><td><strong>encode, wire, decode, synchronize across a boundary</strong></td></tr><tr><td>Overhead</td><td>dispatch, launch, interpreter</td></tr></tbody></table>
+<p>For a model being served across several GPUs, in the regime that actually generates tokens, I suspect the fourth row is where a meaningful share of the bill lands.</p><section class="related" data-astro-cid-vrecybdq><h2 data-astro-cid-vrecybdq>Keep reading</h2><ul data-astro-cid-vrecybdq><li data-astro-cid-vrecybdq><a href="/blog/paged-attention/" data-astro-cid-vrecybdq>PagedAttention, Visualized</a><span class="date" data-astro-cid-vrecybdq>2026</span></li><li data-astro-cid-vrecybdq><a href="/blog/data-parallelism/" data-astro-cid-vrecybdq>Parallel Deep Learning</a><span class="date" data-astro-cid-vrecybdq>2019</span></li><li data-astro-cid-vrecybdq><a href="/blog/when-gpu/" data-astro-cid-vrecybdq>When to use GPU for training?</a><span class="date" data-astro-cid-vrecybdq>2019</span></li></ul></section></div><footer class="footer" data-astro-cid-jo6i4kqk><a class="icon-link" href="https://github.com/Penny-Xu" target="_blank" rel="noopener noreferrer" aria-label="GitHub" data-astro-cid-jo6i4kqk><svg viewBox="0 0 16 16" width="24" height="24" fill="currentColor" data-astro-cid-jo6i4kqk><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+        0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+        -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
+        .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15
+        -.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0
+        1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82
+        1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01
+        1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" data-astro-cid-jo6i4kqk></path></svg></a><a class="icon-link" href="https://www.linkedin.com/in/penny-xu-421766103/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" data-astro-cid-jo6i4kqk><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" data-astro-cid-jo6i4kqk><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.14 1.45
+        -2.14 2.95v5.66H9.34V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.38-1.85
+        3.61 0 4.28 2.38 4.28 5.47v6.27ZM5.34 7.43a2.07 2.07 0 1 1 0-4.13
+        2.07 2.07 0 0 1 0 4.13ZM7.12 20.45H3.55V9h3.57v11.45Z" data-astro-cid-jo6i4kqk></path></svg></a><a class="icon-link" href="https://www.instagram.com/lazycoalabear/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" data-astro-cid-jo6i4kqk><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" data-astro-cid-jo6i4kqk><path d="M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48
+        1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07
+        4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9
+        1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07
+        -4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41a3.72 3.72 0 0
+        1-1.38-.9 3.72 3.72 0 0 1-.9-1.38c-.16-.42-.36-1.06-.41-2.23-.06-1.27
+        -.07-1.65-.07-4.85s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48
+        -.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41 1.27-.06
+        1.65-.07 4.85-.07ZM12 0C8.74 0 8.33.01 7.05.07c-1.28.06-2.15.26-2.91.56
+        a5.88 5.88 0 0 0-2.13 1.38A5.88 5.88 0 0 0 .63 4.14c-.3.76-.5 1.63-.56
+        2.91C0 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.28.26 2.15.56 2.91.31.79
+        .72 1.46 1.38 2.13.67.66 1.34 1.07 2.13 1.38.76.3 1.63.5 2.91.56C8.33
+        24 8.74 24 12 24s3.67-.01 4.95-.07c1.28-.06 2.15-.26 2.91-.56a5.88
+        5.88 0 0 0 2.13-1.38 5.88 5.88 0 0 0 1.38-2.13c.3-.76.5-1.63.56-2.91
+        .06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.28-.26-2.15-.56
+        -2.91a5.88 5.88 0 0 0-1.38-2.13A5.88 5.88 0 0 0 19.86.63c-.76-.3-1.63
+        -.5-2.91-.56C15.67.01 15.26 0 12 0Zm0 5.84A6.16 6.16 0 1 0 12 18.16
+        6.16 6.16 0 0 0 12 5.84Zm0 10.16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm7.85
+        -10.4a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z" data-astro-cid-jo6i4kqk></path></svg></a><p data-astro-cid-jo6i4kqk>Created by Penny Xu, © 2026</p></footer></div></body></html>
